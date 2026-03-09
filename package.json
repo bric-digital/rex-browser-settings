@@ -1,0 +1,45 @@
+{
+   "name": "@bric/rex-browser-settings",
+   "version": "0.0.1",
+   "description": "REX module for detecting browser settings such as default search engine.",
+   "keywords": [
+       "extension",
+       "rex"
+   ],
+   "author": "Behavioral Research Innovation Center",
+   "type": "module",
+   "main": "index.mts",
+   "homepage": "https://github.com/bric-digital/rex-browser-settings",
+   "bugs": {
+       "url": "https://github.com/bric-digital/rex-browser-settings/issues"
+   },
+   "repository": {
+       "type": "git",
+       "url": "git+https://github.com/bric-digital/rex-browser-settings.git"
+   },
+   "exports": {
+       "./extension": "./src/extension.mts",
+       "./browser": "./src/browser.mts",
+       "./service-worker": "./src/service-worker.mts"
+   },
+   "scripts": {
+       "build": "tsc",
+       "lint": "eslint src",
+       "pretest": "node tests/scripts/build-test-bundle.js",
+       "test": "npx playwright test"
+   },
+   "devDependencies": {
+       "@eslint/js": "^9.39.1",
+       "@playwright/test": "^1.52.0",
+       "chrome-types": "^0.1.387",
+       "esbuild": "^0.25.0",
+       "eslint": "^9.39.1",
+       "globals": "^16.5.0",
+       "jiti": "^2.6.1",
+       "typescript": "^5.9.2",
+       "typescript-eslint": "^8.46.3"
+   },
+   "dependencies": {
+       "@bric/rex-core": "github:bric-digital/rex-core"
+   }
+}

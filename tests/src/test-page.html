@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rex Browser Settings Test Page</title>
+</head>
+<body>
+    <h1>Rex Browser Settings Test Page</h1>
+    <div id="status">Loading test utilities...</div>
+
+    <script type="module">
+        // ---------------------------------------------------------------
+        // Configurable mock URL for chrome.search.query
+        // Tests set this before triggering proactive detection.
+        // ---------------------------------------------------------------
+        window.__mockSearchEngineUrl = 'https://www.google.com/search?q=rex+extension+search+detect';
+
+        // Track whether proactive detection timeout should fire
+        window.__mockSearchTimeout = false;
+
+        // ---------------------------------------------------------------
+        // Chrome API mocks
+        // ---------------------------------------------------------------
+        window.chrome = {
+            runtime: {
+                getManifest: () => ({ name: 'Rex Dev Extension' }),
+                sendMessage: async (message) => {
+                    return { success: true };
+                },
+                onMessage: {
+                    addListener: (callback) => {
+                        window.__chromeMessageListeners = window.__chromeMessageListeners || [];
+                        window.__chromeMessageListeners.push(callback);
+                    }
+                }
+            },
+            storage: {
+                local: {
+                    _data: {},
+                    get: async (keys) => {
+                        if (typeof keys === 'string') {
+                            return { [keys]: window.chrome.storage.local._data[keys] };
+                        }
+                        if (Array.isArray(keys)) {
+                            const result = {};
+                            keys.forEach(key => {
+                                if (window.chrome.storage.local._data[key] !== undefined) {
+                                    result[key] = window.chrome.storage.local._data[key];
+                                }
+                            });
+                            return result;
+                        }
+                        return { ...window.chrome.storage.local._data };
+                    },
+                    set: async (items) => {
+                        Object.assign(window.chrome.storage.local._data, items);
+                        if (window.chrome.storage.onChanged._listeners.length > 0) {
+                            const changes = {};
+                            Object.keys(items).forEach(key => {
+                                changes[key] = {
+                                    newValue: items[key],
+                                    oldValue: undefined
+                                };
+                            });
+                            window.chrome.storage.onChanged._listeners.forEach(listener => {
+                                listener(changes, 'local');
+                            });
+                        }
+                    },
+                    remove: async (keys) => {
+                        const keysArray = Array.isArray(keys) ? keys : [keys];
+                        keysArray.forEach(key => {
+                            delete window.chrome.storage.local._data[key];
+                        });
+                    },
+                    clear: async () => {
+                        window.chrome.storage.local._data = {};
+                    }
+                },
+                onChanged: {
+                    _listeners: [],
+                    addListener: (callback) => {
+                        window.chrome.storage.onChanged._listeners.push(callback);
+                    }
+                }
+            },
+            alarms: {
+                _alarms: {},
+                _listeners: [],
+                create: async (name, alarmInfo) => {
+                    window.chrome.alarms._alarms[name] = alarmInfo;
+                },
+                clear: async (name) => {
+                    delete window.chrome.alarms._alarms[name];
+                },
+                get: async (name) => {
+                    return window.chrome.alarms._alarms[name];
+                },
+                getAll: async () => {
+                    return Object.keys(window.chrome.alarms._alarms).map(name => ({
+                        name,
+                        ...window.chrome.alarms._alarms[name]
+                    }));
+                },
+                onAlarm: {
+                    addListener: (callback) => {
+                        window.chrome.alarms._listeners.push(callback);
+                    }
+                }
+            },
+            tabs: {
+                _nextTabId: 100,
+                _updateListeners: [],
+                create: async (options) => {
+                    const tab = {
+                        id: window.chrome.tabs._nextTabId++,
+                        url: options.url || 'about:blank',
+                        windowId: options.windowId || 1,
+                        active: options.active !== false,
+                        status: 'complete'
+                    };
+                    return tab;
+                },
+                update: async (tabId, updateProperties) => {
+                    return { id: tabId, ...updateProperties };
+                },
+                remove: async (tabId) => {
+                    // no-op
+                },
+                onUpdated: {
+                    addListener: (callback) => {
+                        window.chrome.tabs._updateListeners.push(callback);
+                    },
+                    removeListener: (callback) => {
+                        const idx = window.chrome.tabs._updateListeners.indexOf(callback);
+                        if (idx !== -1) {
+                            window.chrome.tabs._updateListeners.splice(idx, 1);
+                        }
+                    }
+                }
+            },
+            windows: {
+                _nextWindowId: 200,
+                create: (options, callback) => {
+                    const windowId = window.chrome.windows._nextWindowId++;
+                    const tabId = window.chrome.tabs._nextTabId++;
+                    const win = {
+                        id: windowId,
+                        state: options.state || 'normal',
+                        tabs: [{
+                            id: tabId,
+                            url: options.url || 'about:blank',
+                            windowId: windowId,
+                            status: 'complete'
+                        }]
+                    };
+                    if (callback) callback(win);
+                    return win;
+                },
+                remove: (windowId, callback) => {
+                    if (callback) callback();
+                }
+            },
+            search: {
+                query: (options, callback) => {
+                    // Simulate search by triggering tabs.onUpdated with the mock URL
+                    if (!window.__mockSearchTimeout) {
+                        const tabId = options.tabId;
+                        setTimeout(() => {
+                            const listeners = [...window.chrome.tabs._updateListeners];
+                            listeners.forEach(listener => {
+                                listener(tabId, { url: window.__mockSearchEngineUrl }, {
+                                    id: tabId,
+                                    url: window.__mockSearchEngineUrl,
+                                    status: 'loading'
+                                });
+                            });
+                        }, 10);
+                    }
+                    if (callback) callback();
+                }
+            },
+            webNavigation: {
+                _committedListeners: [],
+                onCommitted: {
+                    addListener: (callback) => {
+                        window.chrome.webNavigation._committedListeners.push(callback);
+                    },
+                    removeListener: (callback) => {
+                        const idx = window.chrome.webNavigation._committedListeners.indexOf(callback);
+                        if (idx !== -1) {
+                            window.chrome.webNavigation._committedListeners.splice(idx, 1);
+                        }
+                    }
+                }
+            }
+        };
+
+        // ---------------------------------------------------------------
+        // Helper functions
+        // ---------------------------------------------------------------
+
+        window.triggerAlarm = (name) => {
+            window.chrome.alarms._listeners.forEach(listener => {
+                listener({ name });
+            });
+        };
+
+        window.triggerWebNavigation = (details) => {
+            window.chrome.webNavigation._committedListeners.forEach(listener => {
+                listener(details);
+            });
+        };
+
+        window.clearStorage = async () => {
+            await window.chrome.storage.local.clear();
+        };
+
+        document.getElementById('status').textContent = 'Test environment loaded and ready';
+        window.testUtilitiesReady = true;
+    </script>
+
+    <script type="module" src="build/test-shim.bundle.js"></script>
+</body>
+</html>

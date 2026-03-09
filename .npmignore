@@ -1,0 +1,5 @@
+tests/
+playwright.config.js
+playwright-report/
+test-results/
+.circleci/
