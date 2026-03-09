@@ -97,9 +97,29 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
     this.fetchIdentifier().then((identifier) => {
       if (!identifier) {
         console.log('[BrowserSettingsModule] No identifier set, deferring detection')
+        this.listenForIdentifier()
         return
       }
 
+      this.fetchStoredResult().then((result) => {
+        if (!result) {
+          setTimeout(() => {
+            this.detectSearchEngineProactive()
+          }, PROACTIVE_DELAY_MS)
+        }
+      })
+    })
+  }
+
+  listenForIdentifier() {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'local') return
+      if (!changes.rexIdentifier) return
+
+      const newValue = changes.rexIdentifier.newValue
+      if (!newValue) return
+
+      console.log('[BrowserSettingsModule] Identifier now available, checking for stored result')
       this.fetchStoredResult().then((result) => {
         if (!result) {
           setTimeout(() => {
