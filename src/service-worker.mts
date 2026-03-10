@@ -135,9 +135,13 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
 
     this.navigationListener = (details: { tabId: number; url: string; processId: number; frameId: number; transitionType: string; timeStamp: number }) => {
       if (details.frameId !== 0) return
-      if (details.transitionType !== 'generated') return
 
       const engine = this.identifySearchEngine(details.url)
+      if (engine) {
+        console.log(`[BrowserSettingsModule] Passive: detected ${engine}, transitionType=${details.transitionType}`)
+      }
+
+      if (details.transitionType !== 'generated') return
       if (engine) {
         this.fetchIdentifier().then((identifier) => {
           if (!identifier) return
