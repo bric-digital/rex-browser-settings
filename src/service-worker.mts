@@ -135,21 +135,25 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
 
     this.navigationListener = (details: { tabId: number; url: string; processId: number; frameId: number; transitionType: string; timeStamp: number }) => {
       if (details.frameId !== 0) return
+      if (details.transitionType !== 'generated') return
 
       const engine = this.identifySearchEngine(details.url)
-      if (engine) {
-        console.log(`[BrowserSettingsModule] Passive: detected ${engine}, transitionType=${details.transitionType}`)
-      }
+      if (!engine) return
 
-      if (details.transitionType !== 'generated') return
-      if (engine) {
-        this.fetchIdentifier().then((identifier) => {
-          if (!identifier) return
+      this.fetchIdentifier().then((identifier) => {
+        if (!identifier) return
 
+        this.fetchStoredResult().then((stored) => {
           const now = Date.now()
+          const engineChanged = stored?.engine !== engine
+          const hoursSinceLast = stored ? (now - stored.detected_at) / 3600000 : Infinity
+          const recheckHours = this.config?.recheck_interval_hours ?? DEFAULT_RECHECK_HOURS
+
+          // Report to PDK only if engine changed or 24 hours have passed
+          if (!engineChanged && hoursSinceLast < recheckHours) return
+
           const result: DetectionResult = {
-            engine: engine,
-            //possibly sensitive info
+            engine,
             'url*': details.url,
             detected_at: now,
             detection_method: 'passive',
@@ -158,7 +162,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           this.storeResult(result)
           this.reportToPDK(result)
         })
-      }
+      })
     }
 
     chrome.webNavigation.onCommitted.addListener(this.navigationListener)
@@ -214,7 +218,6 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           return
         }
 
-        const tabId = win.tabs[0].id!
         const windowId = win.id!
         let resolved = false
 

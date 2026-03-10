@@ -14,18 +14,31 @@
         // Configurable mock URL for chrome.search.query
         // Tests set this before triggering proactive detection.
         // ---------------------------------------------------------------
-        window.__mockSearchEngineUrl = 'https://www.google.com/search?q=rex+extension+search+detect';
+        window.__mockSearchEngineUrl = 'https://www.google.com/search?q=Ricardo+Montalb%C3%A1n';
 
         // Track whether proactive detection timeout should fire
         window.__mockSearchTimeout = false;
+
+        // Record all calls to chrome.search.query for assertion
+        window.__searchQueryCalls = [];
+
+        // Record all calls to chrome.runtime.sendMessage for assertion
+        window.__runtimeMessageCalls = [];
 
         // ---------------------------------------------------------------
         // Chrome API mocks
         // ---------------------------------------------------------------
         window.chrome = {
             runtime: {
+                lastError: null,
                 getManifest: () => ({ name: 'Rex Dev Extension' }),
                 sendMessage: async (message) => {
+                    window.__runtimeMessageCalls.push(structuredClone(message));
+
+                    // Mock getIdentifier — return the stored identifier
+                    if (message && message.messageType === 'getIdentifier') {
+                        return window.chrome.storage.local._data.rexIdentifier || null;
+                    }
                     return { success: true };
                 },
                 onMessage: {
@@ -125,8 +138,8 @@
                 update: async (tabId, updateProperties) => {
                     return { id: tabId, ...updateProperties };
                 },
-                remove: async (tabId) => {
-                    // no-op
+                remove: (tabId, callback) => {
+                    if (callback) callback();
                 },
                 onUpdated: {
                     addListener: (callback) => {
@@ -142,7 +155,9 @@
             },
             windows: {
                 _nextWindowId: 200,
+                _createCalls: [],
                 create: (options, callback) => {
+                    window.chrome.windows._createCalls.push(structuredClone(options));
                     const windowId = window.chrome.windows._nextWindowId++;
                     const tabId = window.chrome.tabs._nextTabId++;
                     const win = {
@@ -164,18 +179,41 @@
             },
             search: {
                 query: (options, callback) => {
-                    // Simulate search by triggering tabs.onUpdated with the mock URL
+                    // Record the call so tests can assert on arguments
+                    window.__searchQueryCalls.push(structuredClone(options));
+
+                    // Simulate realistic browser behavior:
+                    // 1. First a chrome-extension:// navigation fires (extension internal)
+                    // 2. Then the actual search engine URL fires
                     if (!window.__mockSearchTimeout) {
-                        const tabId = options.tabId;
                         setTimeout(() => {
-                            const listeners = [...window.chrome.tabs._updateListeners];
-                            listeners.forEach(listener => {
-                                listener(tabId, { url: window.__mockSearchEngineUrl }, {
-                                    id: tabId,
-                                    url: window.__mockSearchEngineUrl,
-                                    status: 'loading'
-                                });
+                            // Step 1: chrome-extension:// URL fires first (like real Chrome)
+                            const extensionDetails = {
+                                tabId: window.chrome.tabs._nextTabId - 1,
+                                url: 'chrome-extension://fakeid/search.html',
+                                frameId: 0,
+                                transitionType: 'generated',
+                                processId: 1,
+                                timeStamp: Date.now()
+                            };
+                            window.chrome.webNavigation._committedListeners.forEach(listener => {
+                                listener(extensionDetails);
                             });
+
+                            // Step 2: actual search engine URL fires after a short delay
+                            setTimeout(() => {
+                                const searchDetails = {
+                                    tabId: window.chrome.tabs._nextTabId - 1,
+                                    url: window.__mockSearchEngineUrl,
+                                    frameId: 0,
+                                    transitionType: 'generated',
+                                    processId: 1,
+                                    timeStamp: Date.now()
+                                };
+                                window.chrome.webNavigation._committedListeners.forEach(listener => {
+                                    listener(searchDetails);
+                                });
+                            }, 5);
                         }, 10);
                     }
                     if (callback) callback();
