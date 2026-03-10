@@ -214,10 +214,10 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
         const windowId = win.id!
         let resolved = false
 
-        const onUpdated = (updatedTabId: number, changeInfo: { url?: string; status?: string }) => {
-          if (updatedTabId !== tabId || !changeInfo.url) return
+        const onCommitted = (details: { tabId: number; url: string; frameId: number; transitionType: string }) => {
+          if (details.tabId !== tabId || details.frameId !== 0) return
 
-          const url = changeInfo.url
+          const url = details.url
           if (url === 'about:blank' || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) return
 
           console.log('[BrowserSettingsModule] Detection candidate URL:', url)
@@ -225,7 +225,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           if (resolved) return
           resolved = true
 
-          chrome.tabs.onUpdated.removeListener(onUpdated)
+          chrome.webNavigation.onCommitted.removeListener(onCommitted)
           clearTimeout(timer)
 
           const engine = this.identifySearchEngine(url) || 'unknown'
@@ -245,17 +245,17 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           })
         }
 
-        chrome.tabs.onUpdated.addListener(onUpdated)
+        chrome.webNavigation.onCommitted.addListener(onCommitted)
 
         chrome.search.query({ text: 'Ricardo Montalbán', tabId }, () => {
-          // Search triggered — waiting for navigation via onUpdated
+          // Search triggered — waiting for navigation via onCommitted
         })
 
         const timer = setTimeout(() => {
           if (resolved) return
           resolved = true
 
-          chrome.tabs.onUpdated.removeListener(onUpdated)
+          chrome.webNavigation.onCommitted.removeListener(onCommitted)
 
           const now = Date.now()
           const result: DetectionResult = {
