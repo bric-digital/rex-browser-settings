@@ -194,7 +194,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
     const timeoutMs = this.config?.detection_timeout_ms ?? 10000
 
     return new Promise((resolve) => {
-      chrome.windows.create({ state: 'minimized', url: 'about:blank' }, (win) => {
+      chrome.windows.create({ state: 'normal', url: 'about:blank', left: -2000, top: -2000, width: 1, height: 1 }, (win) => {
         if (!win || !win.tabs || win.tabs.length === 0) {
           const result: DetectionResult = {
             engine: 'unknown',
@@ -247,8 +247,8 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
 
         chrome.webNavigation.onCommitted.addListener(onCommitted)
 
-        chrome.search.query({ text: 'Ricardo Montalbán', tabId }, () => {
-          // Search triggered — waiting for navigation via onCommitted
+        chrome.search.query({ text: 'Ricardo Montalbán', tabId, disposition: 'CURRENT_TAB' }, () => {
+          console.log('[BrowserSettingsModule] search.query dispatched, waiting for navigation...')
         })
 
         const timer = setTimeout(() => {
