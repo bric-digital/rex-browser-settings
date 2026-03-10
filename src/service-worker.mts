@@ -223,8 +223,6 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           const engine = this.identifySearchEngine(url)
           if (!engine) return  // Not a search engine URL, ignore
 
-          console.log('[BrowserSettingsModule] Detection candidate URL:', url, '-> engine:', engine)
-
           if (resolved) return
           resolved = true
 
@@ -240,7 +238,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
             confident: true,
           }
 
-          chrome.tabs.remove(details.tabId)
+          chrome.tabs.remove(details.tabId, () => { void chrome.runtime.lastError })
           chrome.windows.remove(windowId, () => {
             this.storeResult(result)
             this.reportToPDK(result)
