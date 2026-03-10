@@ -50,7 +50,7 @@ interface BrowserSettingsConfig {
 class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
   config: BrowserSettingsConfig | null = null
   passiveListenerAdded = false
-  navigationListener: ((details: { tabId: number; url: string; processId: number; frameId: number; transitionType: string; timeStamp: number }) => void) | null = null
+  navigationListener: Parameters<typeof chrome.webNavigation.onCommitted.addListener>[0] | null = null
 
   moduleName() {
     return 'BrowserSettingsModule'
@@ -133,7 +133,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
       return
     }
 
-    this.navigationListener = (details: { tabId: number; url: string; processId: number; frameId: number; transitionType: string; timeStamp: number }) => {
+    this.navigationListener = (details) => {
       if (details.frameId !== 0) return
       if (details.transitionType !== 'generated') return
 
@@ -154,7 +154,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
 
           const result: DetectionResult = {
             engine,
-            'url*': details.url,
+            'url*': details.url, //not a typo, leave it alone!
             detected_at: now,
             detection_method: 'passive',
             confident: true,
@@ -221,7 +221,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
         const windowId = win.id!
         let resolved = false
 
-        const onCommitted = (details: { tabId: number; url: string; frameId: number; transitionType: string }) => {
+        const onCommitted: Parameters<typeof chrome.webNavigation.onCommitted.addListener>[0] = (details) => {
           if (details.frameId !== 0) return
 
           const url = details.url
@@ -245,7 +245,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
             confident: true,
           }
 
-          chrome.tabs.remove(details.tabId, () => { void chrome.runtime.lastError })
+          chrome.tabs.remove(details.tabId).catch(() => { /* tab may already be closed */ })
           chrome.windows.remove(windowId, () => {
             this.storeResult(result)
             this.reportToPDK(result)

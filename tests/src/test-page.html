@@ -140,6 +140,7 @@
                 },
                 remove: (tabId, callback) => {
                     if (callback) callback();
+                    return Promise.resolve();
                 },
                 onUpdated: {
                     addListener: (callback) => {
