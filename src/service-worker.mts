@@ -32,7 +32,7 @@ interface DetectionResult {
   engine: string
   url: string
   detected_at: number
-  detection_method: 'proactive' | 'passive'
+  detection_method: 'active' | 'passive'
   confident: boolean
   error?: string
 }
@@ -77,11 +77,9 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
         }, 1000)
       })
   }
-
   fetchIdentifier(): Promise<string | null> {
-    return chrome.storage.local.get('rexIdentifier').then((data) => {
-      return data.rexIdentifier || null
-    })
+    return chrome.runtime.sendMessage({ messageType: 'getIdentifier' })
+      .then((identifier: string | null) => identifier || null)
   }
 
   updateConfiguration(config: BrowserSettingsConfig) {
@@ -147,7 +145,8 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           const now = Date.now()
           const result: DetectionResult = {
             engine: engine,
-            url: details.url,
+            //possibly sensitive info
+            'url*': details.url,
             detected_at: now,
             detection_method: 'passive',
             confident: true,
@@ -179,7 +178,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           const now = Date.now()
 
           if (result && result.detected_at > now - recheckMs && result.detection_method === 'passive') {
-            // Recent passive detection exists, no proactive check needed
+            // Recent passive detection exists, no active check needed
           } else {
             this.detectSearchEngineProactive()
           }
@@ -201,7 +200,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
             engine: 'unknown',
             url: '',
             detected_at: Date.now(),
-            detection_method: 'proactive',
+            detection_method: 'active',
             confident: false,
             error: 'Failed to create detection window',
           }
@@ -233,7 +232,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
             engine,
             url,
             detected_at: now,
-            detection_method: 'proactive',
+            detection_method: 'active',
             confident: engine !== 'unknown',
           }
 
@@ -246,7 +245,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
 
         chrome.tabs.onUpdated.addListener(onUpdated)
 
-        chrome.search.query({ text: 'rex extension search detect', tabId }, () => {
+        chrome.search.query({ text: 'Ricardo Montalbán', tabId }, () => {
           // Search triggered — waiting for navigation via onUpdated
         })
 
@@ -261,7 +260,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
             engine: 'unknown',
             url: '',
             detected_at: now,
-            detection_method: 'proactive',
+            detection_method: 'active',
             confident: false,
             error: 'Detection timed out',
           }
