@@ -136,13 +136,17 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
 
     this.navigationListener = (details) => {
       if (details.frameId !== 0) return
-      if (details.transitionType !== 'generated') return
 
       const engine = this.identifySearchEngine(details.url)
       if (!engine) return
 
+      console.log(`[BrowserSettingsModule] Passive: detected ${engine} navigation (transitionType: ${details.transitionType})`)
+
       this.fetchIdentifier().then((identifier) => {
-        if (!identifier) return
+        if (!identifier) {
+          console.log('[BrowserSettingsModule] Passive: no identifier, skipping')
+          return
+        }
 
         this.fetchStoredResult().then((stored) => {
           const now = Date.now()
@@ -150,8 +154,10 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           const hoursSinceLast = stored ? (now - stored.detected_at) / 3600000 : Infinity
           const recheckHours = this.config?.recheck_interval_hours ?? DEFAULT_RECHECK_HOURS
 
-          // Report to PDK only if engine changed or 24 hours have passed
-          if (!engineChanged && hoursSinceLast < recheckHours) return
+          if (!engineChanged && hoursSinceLast < recheckHours) {
+            console.log(`[BrowserSettingsModule] Passive: skipping report — same engine (${engine}), ${hoursSinceLast.toFixed(2)}h since last (threshold: ${recheckHours}h)`)
+            return
+          }
 
           const result: DetectionResult = {
             engine,

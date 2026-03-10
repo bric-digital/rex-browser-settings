@@ -455,9 +455,10 @@ test.describe('BrowserSettingsModule — Passive Detection', () => {
     expect(events).toHaveLength(0)
   })
 
-  test('ignores non-generated transitions', async ({ page }) => {
+  test('detects search engine regardless of transition type', async ({ page }) => {
     await page.goto('/test-page.html')
     await waitForShimLoaded(page)
+    await seedConfig(page)
 
     await page.evaluate(() => {
       ;(window as any).__browserSettingsPlugin.config = { enabled: true }
@@ -466,7 +467,7 @@ test.describe('BrowserSettingsModule — Passive Detection', () => {
 
     await page.evaluate(() => { (window as any).__capturedEvents = [] })
 
-    // Simulate a typed navigation (not from omnibox search)
+    // Simulate a typed navigation to a search engine URL
     await page.evaluate(() => {
       window.triggerWebNavigation({
         frameId: 0,
@@ -491,7 +492,8 @@ test.describe('BrowserSettingsModule — Passive Detection', () => {
         e => e.name === 'rex-browser-settings-search-engine'
       )
     )
-    expect(events).toHaveLength(0)
+    expect(events).toHaveLength(1)
+    expect(events[0]).toHaveProperty('engine', 'google')
   })
 
   test('does not store or report without identifier', async ({ page }) => {
