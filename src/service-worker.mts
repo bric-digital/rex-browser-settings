@@ -194,7 +194,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
     const timeoutMs = this.config?.detection_timeout_ms ?? 10000
 
     return new Promise((resolve) => {
-      chrome.windows.create({ state: 'normal', url: 'about:blank', left: -2000, top: -2000, width: 1, height: 1 }, (win) => {
+      chrome.windows.create({ state: 'minimized', url: 'about:blank' }, (win) => {
         if (!win || !win.tabs || win.tabs.length === 0) {
           const result: DetectionResult = {
             engine: 'unknown',
@@ -215,12 +215,15 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
         let resolved = false
 
         const onCommitted = (details: { tabId: number; url: string; frameId: number; transitionType: string }) => {
-          if (details.tabId !== tabId || details.frameId !== 0) return
+          if (details.frameId !== 0) return
 
           const url = details.url
           if (url === 'about:blank' || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) return
 
-          console.log('[BrowserSettingsModule] Detection candidate URL:', url)
+          const engine = this.identifySearchEngine(url)
+          if (!engine) return  // Not a search engine URL, ignore
+
+          console.log('[BrowserSettingsModule] Detection candidate URL:', url, '-> engine:', engine)
 
           if (resolved) return
           resolved = true
@@ -228,16 +231,16 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           chrome.webNavigation.onCommitted.removeListener(onCommitted)
           clearTimeout(timer)
 
-          const engine = this.identifySearchEngine(url) || 'unknown'
           const now = Date.now()
           const result: DetectionResult = {
             engine,
             url,
             detected_at: now,
             detection_method: 'active',
-            confident: engine !== 'unknown',
+            confident: true,
           }
 
+          chrome.tabs.remove(details.tabId)
           chrome.windows.remove(windowId, () => {
             this.storeResult(result)
             this.reportToPDK(result)
@@ -247,7 +250,8 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
 
         chrome.webNavigation.onCommitted.addListener(onCommitted)
 
-        chrome.search.query({ text: 'Ricardo Montalbán', tabId, disposition: 'CURRENT_TAB' }, () => {
+        // Use search.query without tabId — opens new tab in current window routed through default engine
+        chrome.search.query({ text: 'Ricardo Montalbán', disposition: 'NEW_TAB' }, () => {
           console.log('[BrowserSettingsModule] search.query dispatched, waiting for navigation...')
         })
 
