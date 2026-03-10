@@ -220,6 +220,8 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           const url = changeInfo.url
           if (url === 'about:blank' || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) return
 
+          console.log('[BrowserSettingsModule] Detection candidate URL:', url)
+
           if (resolved) return
           resolved = true
 
