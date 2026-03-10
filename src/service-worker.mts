@@ -218,7 +218,7 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           if (updatedTabId !== tabId || !changeInfo.url) return
 
           const url = changeInfo.url
-          if (url === 'about:blank' || url.startsWith('chrome://')) return
+          if (url === 'about:blank' || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) return
 
           if (resolved) return
           resolved = true
