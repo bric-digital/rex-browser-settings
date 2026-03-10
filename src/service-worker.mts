@@ -31,6 +31,7 @@ const PDK_GENERATOR_ID = 'rex-browser-settings-search-engine'
 interface DetectionResult {
   engine: string
   url: string
+  'url*'?: string
   detected_at: number
   detection_method: 'active' | 'passive'
   confident: boolean
@@ -154,7 +155,8 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
 
           const result: DetectionResult = {
             engine,
-            'url*': details.url, //not a typo, leave it alone!
+            //need to add url* due to privacy
+            url: details.url, 
             detected_at: now,
             detection_method: 'passive',
             confident: true,
@@ -233,7 +235,8 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           if (resolved) return
           resolved = true
 
-          chrome.webNavigation.onCommitted.removeListener(onCommitted)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chrome-types bug: removeListener signature mismatches addListener
+          chrome.webNavigation.onCommitted.removeListener(onCommitted as any)
           clearTimeout(timer)
 
           const now = Date.now()
@@ -264,7 +267,8 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
           if (resolved) return
           resolved = true
 
-          chrome.webNavigation.onCommitted.removeListener(onCommitted)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chrome-types bug: removeListener signature mismatches addListener
+          chrome.webNavigation.onCommitted.removeListener(onCommitted as any)
 
           const now = Date.now()
           const result: DetectionResult = {
