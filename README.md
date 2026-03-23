@@ -1,6 +1,6 @@
 # rex-browser-settings
 
-REX module for detecting browser settings such as the participant's default search engine.
+REX module for detecting browser settings such as default search engine.
 
 ## Detection Strategy
 
