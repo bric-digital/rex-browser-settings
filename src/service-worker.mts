@@ -264,8 +264,8 @@ class BrowserSettingsServiceWorkerModule extends REXServiceWorkerModule {
 
         chrome.webNavigation.onCommitted.addListener(onCommitted)
 
-        // Use search.query without tabId — opens new tab in current window routed through default engine
-        chrome.search.query({ text: 'Ricardo Montalbán', disposition: 'NEW_TAB' }, () => {
+        // Use search.query with tabId to keep the search inside the minimized window
+        chrome.search.query({ text: 'Ricardo Montalbán', tabId: win.tabs[0].id! }, () => {
           console.log('[BrowserSettingsModule] search.query dispatched, waiting for navigation...')
         })
 
