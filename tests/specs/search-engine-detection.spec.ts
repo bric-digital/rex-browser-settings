@@ -242,7 +242,7 @@ test.describe('BrowserSettingsModule — Proactive Detection', () => {
     expect(result.confident).toBe(true)
   })
 
-  test('search.query is called with disposition NEW_TAB and without tabId', async ({ page }) => {
+  test('search.query is called with tabId targeting the minimized window', async ({ page }) => {
     await page.goto('/test-page.html')
     await waitForShimLoaded(page)
     await resetCallTracking(page)
@@ -256,8 +256,8 @@ test.describe('BrowserSettingsModule — Proactive Detection', () => {
     const calls = await page.evaluate(() => (window as any).__searchQueryCalls)
     expect(calls.length).toBeGreaterThanOrEqual(1)
     const call = calls[0]
-    expect(call.disposition).toBe('NEW_TAB')
-    expect(call.tabId).toBeUndefined()
+    expect(call.disposition).toBeUndefined()
+    expect(typeof call.tabId).toBe('number')
     expect(typeof call.text).toBe('string')
     expect(call.text.length).toBeGreaterThan(0)
   })
